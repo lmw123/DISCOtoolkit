@@ -1,7 +1,11 @@
 Type: Package
 Package: DISCOtoolkit
 Title: DISCOtoolkit
+<<<<<<< HEAD
 Version: 1.2.0
+=======
+Version: 1.1.0
+>>>>>>> 055018bc3c98e747bebd54708bc0da167a57f0e2
 Authors@R: c(
   person(given = "Mengwei", family = "Li", email = "li_mengwei@immunol.a-star.edu.sg", role = c("cre", "aut")),
   person(given = "Jinmiao", family = "Chen", email = "chen_jinmiao@immunol.a-star.edu.sg", role = c("ths"))
