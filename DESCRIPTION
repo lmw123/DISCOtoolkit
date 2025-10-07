@@ -1,0 +1,22 @@
+Type: Package
+Package: DISCOtoolkit
+Title: DISCOtoolkit
+Version: 1.2.0
+Authors@R: c(
+  person(given = "Mengwei", family = "Li", email = "li_mengwei@immunol.a-star.edu.sg", role = c("cre", "aut")),
+  person(given = "Jinmiao", family = "Chen", email = "chen_jinmiao@immunol.a-star.edu.sg", role = c("ths"))
+  )
+Description: Access data and tool of DISCO
+License: MIT License
+Depends:
+    methods,
+    R (>= 4.0.0)
+Imports:
+    pbmcapply,
+    stringr,
+    jsonlite,
+    progress,
+    Matrix
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.1
