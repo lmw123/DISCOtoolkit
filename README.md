@@ -21,7 +21,7 @@ DISCOtoolkit depends on the following packages:
 ## Installation
 
 ``` r
-devtools::install_github("git@github.com:JinmiaoChenLab/DISCOtoolkit.git")
+devtools::install_github("git@github.com:lmw123/DISCOtoolkit.git")
 ```
 
 ## Basic Usage
