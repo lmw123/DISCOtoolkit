@@ -16,6 +16,7 @@ DownloadDiscoData <- function(metadata, output_dir = "DISCOtmp") {
 
   tryCatch({
     if (!dir.exists(output_dir)) {
+      message("Create output direactory")
       dir.create(output_dir)
     }
   }, error = function(e){
@@ -30,7 +31,7 @@ DownloadDiscoData <- function(metadata, output_dir = "DISCOtmp") {
   cell_type_list = list()
   message("Start downloading")
   for (i in 1:nrow(samples)) {
-    output_file = paste0(output_dir, "/", samples$sample_id[i], ".h5")
+    output_file = paste0(output_dir, "/", samples$sample_id[i], ".rds")
 
     h5_url      <- paste0(
       getOption("disco_url"),
@@ -38,18 +39,10 @@ DownloadDiscoData <- function(metadata, output_dir = "DISCOtmp") {
       samples$project_id[i], "/",
       samples$sample_id[i]
     )
-    local_h5    <- file.path(output_dir, paste0(samples$sample_id[i], ".h5"))
+    tmp <- tempfile(fileext = ".h5")
+    download.file(h5_url, tmp, mode = "wb", quiet = TRUE)
 
-    # download .h5 if it doesn't already exist
-
-    download.file(h5_url, destfile = local_h5, mode = "wb")
-
-    rna <- Seurat::Read10X_h5(local_h5)
-
-    # 删除刚刚下载的 .h5 文件
-    if (file.exists(local_h5)) {
-      file.remove(local_h5)
-    }
+    rna <- Seurat::Read10X_h5(tmp)
 
     cell = read.csv(paste0(getOption("disco_url"), "toolkit/getCellTypeSample?sampleId=", samples$sample_id[i]), sep = "\t")
     rownames(cell) = cell$cell_id
