@@ -5,28 +5,37 @@
 #' @return A character vector containing sample IDs that failed to download
 #' @examples
 #' # Download the data from project 'GSE174748' and store it in the 'disco_data' directory
-#' metadata = FilterDiscoMetadata(
+#' metadata <- FilterDiscoMetadata(
 #'   project = "GSE174748"
 #' )
-#' failed = DownloadDiscoData(metadata, output_dir = "disco_data")
+#' failed <- DownloadDiscoData(metadata, output_dir = "disco_data")
 #' @importFrom progress progress_bar
 #' @import Matrix
 #' @export
 DownloadDiscoData <- function(metadata, output_dir = "DISCOtmp") {
+  if (!requireNamespace("Seurat", quietly = TRUE)) {
+    stop(
+      "The package 'Seurat' is required for DownloadDiscoData (reading 10X H5 files). ",
+      "Install it with: install.packages(\"Seurat\")"
+    )
+  }
 
-  tryCatch({
-    if (!dir.exists(output_dir)) {
-      message("Create output directory")
-      dir.create(output_dir)
+  tryCatch(
+    {
+      if (!dir.exists(output_dir)) {
+        message("Create output directory")
+        dir.create(output_dir)
+      }
+    },
+    error = function(e) {
+      stop("The output directory cannot be created.")
     }
-  }, error = function(e){
-    stop("The output directory cannot be created.")
-  })
+  )
 
-  samples = metadata$sample_metadata
+  samples <- metadata$sample_metadata
   pb <- progress_bar$new(format = "[:bar] :current/:total (:percent)", total = nrow(samples))
-  cell_type_list = list()
-  failed_list = c()
+  cell_type_list <- list()
+  failed_list <- c()
 
   message("Start downloading")
 
@@ -44,53 +53,60 @@ DownloadDiscoData <- function(metadata, output_dir = "DISCOtmp") {
 
     tmp <- tempfile(fileext = ".h5")
 
-    success <- tryCatch({
-      # Download
-      utils::download.file(h5_url, tmp, mode = "wb", quiet = TRUE)
-      # Read
-      rna <- Seurat::Read10X_h5(tmp)
+    success <- tryCatch(
+      {
+        # Download
+        utils::download.file(h5_url, tmp, mode = "wb", quiet = TRUE)
+        # Read
+        rna <- Seurat::Read10X_h5(tmp)
 
-      # Cell type info
-      cell <- tryCatch({
-        read.csv(
-          paste0(getOption("disco_url"), "toolkit/getCellTypeSample?sampleId=", sample_id),
-          sep = "\t"
+        # Cell type info
+        cell <- tryCatch(
+          {
+            read.csv(
+              paste0(getOption("disco_url"), "toolkit/getCellTypeSample?sampleId=", sample_id),
+              sep = "\t"
+            )
+          },
+          error = function(e) {
+            warning(paste("Cell type info failed for", sample_id))
+            NULL
+          }
         )
-      }, error = function(e) {
-        warning(paste("Cell type info failed for", sample_id))
-        NULL
-      })
 
-      if (!is.null(cell)) {
-        rownames(cell) = cell$cell_id
-        cell = cell[, c(3, 6)]
-      }
-
-      # Apply filters
-      if (!is.null(metadata$filter$cell_type)) {
-        cell = cell[which(cell$cell_type %in% metadata[["cell_type_metadata"]][["cell_type"]]), , drop = FALSE]
-        if (metadata[["filter"]][["cell_type_confidence"]] == "high") {
-          cell = cell[which(cell$cell_type_score >= 0.8), , drop = FALSE]
-        } else if (metadata[["filter"]][["cell_type_confidence"]] == "medium") {
-          cell = cell[which(cell$cell_type_score >= 0.6), , drop = FALSE]
+        if (!is.null(cell)) {
+          rownames(cell) <- cell$cell_id
+          cell <- cell[, c(3, 6)]
         }
-        rna = rna[, rownames(cell), drop = FALSE]
-      }
 
-      saveRDS(rna, output_file)
-      cell_type_list[[i]] <- cell
-      closeAllConnections()
-      TRUE
-    }, error = function(e) {
-      warning(paste("Failed:", sample_id, "Reason:", e$message))
-      failed_list <<- c(failed_list, sample_id)
-      FALSE
-    })
+        # Apply filters
+        if (!is.null(metadata$filter$cell_type)) {
+          cell <- cell[which(cell$cell_type %in% metadata[["cell_type_metadata"]][["cell_type"]]), , drop = FALSE]
+          if (metadata[["filter"]][["cell_type_confidence"]] == "high") {
+            cell <- cell[which(cell$cell_type_score >= 0.8), , drop = FALSE]
+          } else if (metadata[["filter"]][["cell_type_confidence"]] == "medium") {
+            cell <- cell[which(cell$cell_type_score >= 0.6), , drop = FALSE]
+          }
+          rna <- rna[, rownames(cell), drop = FALSE]
+        }
+
+        saveRDS(rna, output_file)
+        cell_type_list[[i]] <- cell
+        closeAllConnections()
+        TRUE
+      },
+      error = function(e) {
+        err_msg <- conditionMessage(e)
+        warning("Failed to download ", sample_id, ": ", err_msg)
+        failed_list <<- c(failed_list, sample_id)
+        FALSE
+      }
+    )
 
     pb$tick()
   }
   if (length(cell_type_list) > 0) {
-    cell_type_list = do.call(rbind, cell_type_list)
+    cell_type_list <- do.call(rbind, cell_type_list)
     saveRDS(cell_type_list, file.path(output_dir, "cell_type.rds"))
   }
 

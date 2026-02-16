@@ -17,11 +17,19 @@ DISCOtoolkit depends on the following packages:
 -   [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html)
 -   [progress](https://cran.r-project.org/web/packages/progress/index.html)
 
+For **downloading and reading DISCO data** (`DownloadDiscoData`), [Seurat](https://satijalab.org/seurat/) is required (used to read 10X Genomics H5 files). Install it with:
+
+``` r
+install.packages("Seurat")
+```
+
+Seurat is also used in the CELLiD workflow examples below.
+
 
 ## Installation
 
 ``` r
-devtools::install_github("git@github.com:lmw123/DISCOtoolkit.git")
+remotes::install_github("git@github.com:lmw123/DISCOtoolkit.git")
 ```
 
 ## Basic Usage
