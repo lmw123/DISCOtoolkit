@@ -1,23 +1,41 @@
 Type: Package
 Package: DISCOtoolkit
-Title: DISCOtoolkit
-Version: 2.0.0
+Title: R Client for the DISCO Single-Cell RNA-seq Platform
+Version: 3.0.0
 Authors@R: c(
-  person(given = "Mengwei", family = "Li", email = "li_mengwei@immunol.a-star.edu.sg", role = c("cre", "aut")),
-  person(given = "Jinmiao", family = "Chen", email = "chen_jinmiao@immunol.a-star.edu.sg", role = c("ths"))
+  person(given = "Mengwei", family = "Li",
+         email = "li_mengwei@immunol.a-star.edu.sg",
+         role = c("cre", "aut")),
+  person(given = "Jinmiao", family = "Chen",
+         email = "chen_jinmiao@immunol.a-star.edu.sg",
+         role = "ths")
   )
-Description: Access data and tool of DISCO
-License: MIT License
+Description: Access data and analysis tools from the DISCO (immunesinglecell.com)
+    single-cell RNA-seq database. Provides functions for querying sample metadata,
+    downloading expression data, running integration, automated cell-type annotation
+    (CELLiD), differential expression, and gene set enrichment.
+License: MIT + file LICENSE
+URL: https://github.com/lmw123/DISCOtoolkit
+BugReports: https://github.com/lmw123/DISCOtoolkit/issues
 Depends:
-    methods,
-    R (>= 4.0.0)
+    R (>= 4.1.0)
 Imports:
+    httr2 (>= 1.0.0),
+    jsonlite (>= 1.8.0),
+    Matrix (>= 1.5.0),
+    progress (>= 1.2.0),
+    cli (>= 3.4.0),
+    rlang (>= 1.0.0)
+Suggests:
+    Seurat (>= 5.0.0),
+    SeuratObject (>= 5.0.0),
     pbmcapply,
-    stringr,
-    jsonlite,
-    progress,
-    Matrix,
-    Seurat
+    parallel,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
 Encoding: UTF-8
-LazyData: true
+LazyData: false
 RoxygenNote: 7.3.1
+Config/testthat/edition: 3
+VignetteBuilder: knitr

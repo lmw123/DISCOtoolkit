@@ -1,115 +1,124 @@
-# DISCOtoolkit 2.0.0 (Oct 24, 2025)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13984774.svg)](https://zenodo.org/badge/DOI/10.5281/zenodo.13984774.svg)
+# DISCOtoolkit <img src="https://immunesinglecell.com/favicon.ico" align="right" height="40"/>
 
-DISCOtoolkit is an R package that provides access to data and tools from the [DISCO database](https://www.immunesinglecell.org/). Its functions include:
+R client for the [DISCO](https://immunesinglecell.com) single-cell RNA-seq database and analysis platform.
 
-- Filter and download DISCO data based on sample metadata and specified cell types
-- CELLiD: cell type annotation
-- scEnrichment: geneset enrichment using DISCO DEGs
+- **22,743 samples · 144,831,560 cells · 40 atlases**
+- Covers blood, lung, liver, brain and 30+ other tissues
+- Includes healthy controls and 100+ disease conditions
 
-## Requirement
-
-DISCOtoolkit depends on the following packages:
-
--   [R](https://www.r-project.org/) (\>= 4.0.0)
--   [pbmcapply](https://cran.r-project.org/web/packages/pbmcapply/index.html)
--   [stringr](https://cran.r-project.org/web/packages/stringr/vignettes/stringr.html)
--   [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html)
--   [progress](https://cran.r-project.org/web/packages/progress/index.html)
-
-For **downloading and reading DISCO data** (`DownloadDiscoData`), [Seurat](https://satijalab.org/seurat/) is required (used to read 10X Genomics H5 files). Install it with:
-
-``` r
-install.packages("Seurat")
-```
-
-Seurat is also used in the CELLiD workflow examples below.
-
+> **Note:** DISCOtoolkit v3 was just released and is under active development — expect frequent updates throughout this month. Some features may be unstable. We apologize for any inconvenience.
 
 ## Installation
 
-``` r
-remotes::install_github("git@github.com:lmw123/DISCOtoolkit.git")
+```r
+remotes::install_github("lmw123/DISCOtoolkit")
 ```
 
-## Basic Usage
+**Dependencies**
 
-### Filter and download DISCO data
+| Package | Role |
+|---------|------|
+| `httr2` | HTTP requests |
+| `progress` | Download progress bars |
+| `cli` | User-facing messages |
 
-``` r
+---
+
+## Quick start
+
+```r
 library(DISCOtoolkit)
-
-# find samples from normal lung tissue and sequenced by 10X Genomics 5' platform
-# retain samples containing more than 100 Macrophages(or its children)
-metadata = FilterDiscoMetadata(
-  sample_id = NULL,
-  project_id = NULL,
-  tissue = "lung",
-  disease = NULL,
-  platform = c("10x5'"),
-  sample_type = c("control", "adjacent normal"),
-  cell_type = "Macrophage", 
-  cell_type_confidence = "high", 
-  include_cell_type_children = T, 
-  min_cell_per_sample = 100
-)
-### print information ###
-# Fetching sample metadata
-# Filtering sample
-# Fetching cell type information
-# Fetching ontology from DISCO database
-# 18 samples and 64592 cells were found
-
-# download filtered data into 'disco_data' folder
-DownloadDiscoData(metadata, output_dir = "disco_data")
+# DISCOtoolkit v3.0.0 — 22,743 samples · 144,831,560 cells · 40 atlases
+# last update: 2025-04
+# immunesinglecell.com
 ```
 
-### CELLiD
+---
 
-``` r
-library(DISCOtoolkit)
-library(Seurat)
+## 1. Data access from DISCO
 
-metadata = FilterDiscoMetadata(
-  sample_id = "ERX2757110"
-)
+```r
+# Filter by tissue and/or disease (returns all matches)
+meta <- FilterDiscoMetadata(tissue = "blood", disease = "COVID-19")
+meta <- FilterDiscoMetadata(tissue = c("blood", "liver"), limit = 500)
+head(meta[, c("sample_id", "tissue", "disease", "cell_number")])
 
-DownloadDiscoData(metadata, output_dir = "disco_data")
+# Filter by sample or project ID
+meta <- FilterDiscoMetadata(project_id = "GSE174748")
 
-rna = readRDS("disco_data/ERX2757110.rds")
-rna = CreateSeuratObject(rna)
-rna = NormalizeData(rna)
-rna = FindVariableFeatures(rna)
-rna = ScaleData(rna)
-rna = RunPCA(rna)
-rna = FindNeighbors(rna, dims = 1:10)
-rna = FindClusters(rna)
+# What values are available for a filter field?
+ListMetadataItem("tissue")
+#   value  count
+# 1 blood   4231
+# 2 lung    1802
 
-rna_average = AverageExpression(rna)
-predict_ct = CELLiDCluster(rna = as.matrix(rna_average$RNA))
+# Download H5 files; skips already-downloaded ones
+res <- DownloadDiscoData(meta, output_dir = "DISCOtmp")
+#   sample_id status                 path
+# 1 S01_...      ok  DISCOtmp/S01_....h5
+# 2 S02_...  failed                 <NA>
 
-
-# It will download reference data and differential expression gene (DEG) data from DISCO and save them in the 'DISCOtmp' folder by default. You can reuse this data for subsequent CELLiD analyses as follow:
-
-ref_data = readRDS("DISCOtmp/ref_data.rds")
-ref_deg = readRDS("DISCOtmp/ref_deg.rds")
-predict_ct = CELLiDCluster(rna = as.matrix(rna_average$RNA), ref_data = ref_data, ref_deg = ref_deg)
-
-
-rna$cell_type = predict_ct$predict_cell_type_1[as.numeric(rna$seurat_clusters)]
-rna = RunUMAP(rna, dims = 1:10)
-DimPlot(rna, group.by = "cell_type", label = T)
+res[res$status == "ok", "path"]   # paths to downloaded files
 ```
 
-### scEnrichment
+---
 
-``` r
-markers = FindMarkers(rna, ident.1 = 0, only.pos = T, logfc.threshold = 0.5)
-cellid_input = data.frame(gene = rownames(markers), logFC = markers$avg_log2FC)
-cellid_res = CELLiDEnrichment(cellid_input)
+## 2. CELLiD — cell type annotation
 
-# also it will download 'ref_geneset.rds' in 'DISCOtmp' folder by default,
-# You can reuse this data for subsequent CELLiDEnrichment analyses as follow:
-ref = readRDS("DISCOtmp/ref_geneset.rds")
-cellid_res = CELLiDEnrichment(cellid_input, reference = ref)
+Annotate clusters using the DISCO CELLiD service (same as the website).
+
+```r
+# Server-side scoring (default) — identical to the website
+predictions <- CELLiDCluster(seu, atlas = "blood")
+
+# Local scoring — downloads reference once, caches in ~/.disco_cache
+predictions <- CELLiDCluster(seu, atlas = "blood", local = TRUE)
+
+#   cluster predicted_cell_type  atlas  score
+# 1       0              T cell  blood  0.87
+# 2       1              B cell  blood  0.91
+
+cluster_map <- setNames(predictions$predicted_cell_type, predictions$cluster)
+seu$cell_type <- setNames(cluster_map[as.character(Seurat::Idents(seu))], colnames(seu))
 ```
+
+---
+
+## 3. scEnrichment
+
+Tests a gene list against two DISCO references and returns a named list.
+Implements the [sc_enrichment](https://www.immunesinglecell.com/tool/sc_enrichment) tool.
+
+```r
+# Load built-in example data (same as the website examples)
+deg   <- disco_example("deg")    # data.frame: gene + logFC (pancreatic DEGs)
+genes <- disco_example("genes")  # character vector (ISG/interferon genes)
+
+res <- CELLiDEnrichment(deg)
+head(res)
+#        type                                    name overlap n_geneset     pval pval_adj odds_ratio
+# 1 Cell Type               Acinar cell                    12        45  1.2e-15  9.4e-13         NA
+# 2 Phenotype  type 2 diabetes vs control for ...       8        32  3.1e-06  4.8e-04        11.3
+
+res <- CELLiDEnrichment(genes)
+```
+
+---
+
+## Citation
+
+If you use DISCO in your research, please cite:
+
+> **DISCO: a database of Deeply Integrated human Single-Cell Omics data**  
+> *Nucleic Acids Research*, 2022.  
+> https://doi.org/10.1093/nar/gkab1020
+
+> **Rediscovering publicly available single-cell data with the DISCO platform**  
+> *Nucleic Acids Research*, 2025.  
+> https://doi.org/10.1093/nar/gkae1108
+
+---
+
+## License
+
+MIT © Mengwei Li
